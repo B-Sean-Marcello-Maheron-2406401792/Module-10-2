@@ -1,43 +1,57 @@
+use chrono::Local;
 use futures_util::sink::SinkExt;
 use futures_util::stream::StreamExt;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::broadcast::{Sender, channel};
+use tokio::sync::broadcast::{channel, Sender};
 use tokio_websockets::{Message, ServerBuilder, WebSocketStream};
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ChatMessage {
+    #[serde(rename = "type")]
+    pub msg_type: String,
+    pub sender: String,
+    pub content: String,
+    pub avatar: Option<String>,
+    pub addr: Option<String>,
+    pub timestamp: Option<String>,
+}
 
 async fn handle_connection(
     addr: SocketAddr,
     mut ws_stream: WebSocketStream<TcpStream>,
     bcast_tx: Sender<String>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    // Membuat receiver baru untuk berlangganan ke saluran siaran server
     let mut bcast_rx = bcast_tx.subscribe();
-
-    // Mengirim pesan sambutan awal bawaan modul praktikum
-    ws_stream.send(Message::text("Sean's Computer From server: Welcome to chat! Type a message")).await?;
 
     loop {
         tokio::select! {
-            // Menerima pesan teks dari WebSocket klien ini
             incoming = ws_stream.next() => {
                 match incoming {
                     Some(Ok(msg)) => {
                         if let Some(text) = msg.as_text() {
-                            // KODE SEBELUM PERUBAHAN:
-                            // Langsung meneruskan teks mentah asli dari klien ke saluran broadcast
-                            let _ = bcast_tx.send(text.to_string());
+                            // Deserialize incoming JSON message
+                            if let Ok(mut chat_msg) = serde_json::from_str::<ChatMessage>(text) {
+                                // Enriched message with sender's address and timestamp
+                                chat_msg.addr = Some(addr.to_string());
+                                chat_msg.timestamp = Some(Local::now().format("%H:%M:%S").to_string());
+                                
+                                // Re-serialize and broadcast
+                                if let Ok(serialized) = serde_json::to_string(&chat_msg) {
+                                    let _ = bcast_tx.send(serialized);
+                                }
+                            }
                         }
                     }
                     _ => break,
                 }
             }
-            // Menerima pesan kiriman dari saluran broadcast utama peladen
             msg = bcast_rx.recv() => {
                 match msg {
                     Ok(text) => {
-                        // Meneruskan pesan siaran bersih ke terminal klien ini
-                        ws_stream.send(Message::text(format!("Sean's Computer From server: {}", text))).await?;
+                        ws_stream.send(Message::text(text)).await?;
                     }
                     _ => break,
                 }
@@ -47,14 +61,13 @@ async fn handle_connection(
     Ok(())
 }
 
-// ... (fungsi handle_connection tetap sama seperti Experiment 2.1) ...
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     let (bcast_tx, _) = channel(16);
 
-    let listener = TcpListener::bind("127.0.0.1:8080").await?;
-    println!("listening on port 8080");
+    // Tutorial 3 web client defaults to ws://127.0.0.1:9001
+    let listener = TcpListener::bind("127.0.0.1:9001").await?;
+    println!("listening on port 9001");
 
     loop {
         let (socket, addr) = listener.accept().await?;
