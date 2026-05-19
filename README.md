@@ -1,5 +1,5 @@
 ### “Experiment 2.1: Original code, and how it run”
-![img.png](img.png)
+![img.png](src/bin/img.png)
 
 
 Cara Menjalankan Aplikasi:
@@ -11,16 +11,16 @@ Ketika seorang pengguna mengetikkan pesan teks di salah satu terminal klien dan 
 ### “Experiment 2.2: Modifying port”.
 
 #### CLient
-![img_1.png](img_1.png)
+![img_1.png](src/bin/img_1.png)
 
 #### Server
-![img_3.png](img_3.png)
+![img_3.png](src/bin/img_3.png)
 
 Proses pemindahan lokasi port jaringan dari nilai bawaan 2000 menjadi 8080 dilakukan dengan mengubah dua berkas kode sumber utama yang merepresentasikan dua sisi arsitektur jaringan, yaitu sisi peladen (server side) dan sisi klien (client side). Pada berkas peladen src/bin/server.rs, modifikasi diterapkan pada instansiasi TcpListener::bind dengan mengubah string alamat pengikatan jaringan dari "127.0.0.1:2000" menjadi "127.0.0.1:8080". Sementara itu, di sisi klien pada berkas src/bin/client.rs , perubahan dilakukan pada parameter fungsi statis ClientBuilder::from_uri(Uri::from_static(...)) dengan mengganti target alamat penargetan menjadi "ws://127.0.0.1:8080".  Komunikasi data interaktif ini sepenuhnya menggunakan skema protokol WebSocket yang sama. Protokol ini secara eksplisit didefinisikan melalui penggunaan skema penanda awal tautan berupa ws:// pada parameter URI di sisi klien. Penanda protokol tersebut berfungsi menginstruksikan pustaka klien agar melakukan inisiasi permintaan jabat tangan (handshake Upgrade request) dari protokol HTTP biasa menuju protokol WebSocket yang bersifat persisten dan dua arah (full-duplex). Di sisi lain, peladen juga telah dikonfigurasi menggunakan pustaka tokio_websockets untuk mendengarkan, memvalidasi, dan menerima jabat tangan protokol ws yang masuk tersebut melalui pemanggilan fungsi ServerBuilder::new().accept(socket), sehingga kedua belah pihak dapat saling bertukar data secara asinkronus tanpa hambatan pada port baru
 
 ### “Experiment 2.3: Small changes, add IP and Port”
 
-![img_2.png](img_2.png)
+![img_2.png](src/bin/img_2.png)
 
 Analisis Alasan dan Letak Perubahan Kode
 Alasan utama dilakukannya perubahan ini adalah untuk meningkatkan fungsionalitas antarmuka aplikasi obrolan klien agar pesan yang diterima menjadi lebih informatif. Tanpa adanya modifikasi pada sisi peladen (server), setiap klien yang terhubung hanya akan menerima untaian teks mentah biasa tanpa mengetahui identitas fisik dari entitas pengirim pesan tersebut. Oleh karena sistem saat ini belum mengimplementasikan modul manajemen nama pengguna (username), pendekatan paling optimal untuk membedakan antar-klien adalah dengan memanfaatkan parameter informasi jaringan yang tersedia secara unik pada setiap soket koneksi aktif.
